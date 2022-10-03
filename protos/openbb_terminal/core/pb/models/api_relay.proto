@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package openbb_terminal.core;
+
+// import "google/protobuf/timestamp.proto";
+// import "google/protobuf/duration.proto";
+import "google/protobuf/struct.proto";
+// import "google/protobuf/wrappers.proto";
+// import "google/protobuf/empty.proto";
+
+message OperationCall {
+  string operation_path = 1;
+  google.protobuf.Struct parameter_map = 2;
+}
+
+service APIRelay {
+  rpc operation_call (OperationCall) returns (google.protobuf.Value) {}
+}
