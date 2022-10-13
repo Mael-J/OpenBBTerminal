@@ -175,6 +175,7 @@ class MenuText:
         col_align : int
             column alignment for the value. This allows for a better UX experience.
         """
+
         parameter_translated = i18n.t(self.menu_path + key_param)
         if col_align > len(parameter_translated):
             space = (col_align - len(parameter_translated)) * " "
@@ -200,7 +201,6 @@ class MenuText:
             cmd = f"[unvl]    {key_command}{spacing}{i18n.t(self.menu_path + key_command)}[/unvl]"
 
         sources = get_ordered_list_sources(f"/{self.menu_path}{key_command}")
-
         if sources:
             if self.col_src > len(cmd):
                 space = (self.col_src - len(cmd)) * " "

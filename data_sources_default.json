@@ -482,15 +482,21 @@
   },
   "funds": {
     "country": ["Investing"],
+    "country_ms": ["MorningStar"],
     "overview": ["Investing"],
     "search": ["Investing"],
+    "search_ms": ["MorningStar"],
     "load": ["Investing"],
+    "load_ms": ["MorningStar"],
     "info": ["Investing"],
     "plot": ["Investing"],
+    "plot_ms": ["MorningStar"],
     "sector": ["YahooFinance"],
+    "sector_ms": ["MorningStar"],
     "equity": ["YahooFinance"],
     "al_swe": ["Avanza"],
-    "info_swe": ["Avanza"]
+    "info_swe": ["Avanza"],
+    "holdings": ["MorningStar"]
   },
   "alternative": {
     "oss": {

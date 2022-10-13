@@ -922,14 +922,20 @@ en:
   forex/oanda/orderbook: print orderbook
   forex/oanda/positionbook: print positionbook
   funds/country: set a country for filtering
+  funds/country_ms: set a country for filtering
+  funds/holdings: holdings of the loaded funds
   funds/_country: Current Country
   funds/overview: overview of top funds by country
-  funds/search: search for Mutual Funds
-  funds/load: load historical fund data
+  funds/search: search for mutual Funds
+  funds/search_ms: search for Mutual Funds
+  funds/load: load historical funds data
+  funds/load_ms: load funds to access data
   funds/_fund: Current Fund
   funds/info: get fund information
   funds/plot: plot loaded historical fund data
+  funds/plot_ms: plot loaded historical fund, category and index data
   funds/sector: sector weightings
+  funds/sector_ms: sector breakdown
   funds/equity: equity holdings
   funds/al_swe: display fund allocation (sector, country, holdings)
   funds/info_swe: get fund information

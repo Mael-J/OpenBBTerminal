@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import List
 
 import investpy
+import mstarpy
 import pandas as pd
 from prompt_toolkit.completion import NestedCompleter
 
@@ -25,8 +26,10 @@ from openbb_terminal.menu import session
 from openbb_terminal.mutual_funds import (
     investpy_model,
     investpy_view,
+    mstarpy_view,
     yfinance_view,
     avanza_view,
+    
 )
 from openbb_terminal.parent_classes import BaseController
 from openbb_terminal.rich_config import console, MenuText
@@ -40,18 +43,26 @@ class FundController(BaseController):
     CHOICES_COMMANDS = [
         "resources",
         "country",
+        "country_ms",
         "search",
+        "search_ms",
         "overview",
         "info",
         "load",
+        "load_ms",
         "plot",
+        "plot_ms",
         "sector",
+        "sector_ms",
         "equity",
         "al_swe",
         "info_swe",
+        "holdings",
     ]
 
     fund_countries = investpy.funds.get_fund_countries()
+    fund_countries_ms = list(mstarpy.utils.SITE.keys())
+
     search_by_choices = ["name", "issuer", "isin", "symbol"]
     search_cols = [
         "country",
@@ -71,19 +82,23 @@ class FundController(BaseController):
         """Constructor"""
         super().__init__(queue)
 
-        self.country = "united states"
+        self.country = "fr"
         self.data = pd.DataFrame()
         self.fund_name = ""
         self.fund_symbol = ""
         self.TRY_RELOAD = True
+        self.funds_ms = ""
 
         if session and obbff.USE_PROMPT_TOOLKIT:
             choices: dict = {c: {} for c in self.controller_choices}
             choices["country"] = {c: None for c in self.fund_countries}
+            choices["country_ms"] = {c: None for c in self.fund_countries_ms}
+            choices["sector_ms"] = {c: None for c in ["equity", "fixed income"]}
             choices["search"]["-b"] = {c: None for c in self.search_by_choices}
             choices["search"]["--by"] = {c: None for c in self.search_by_choices}
             choices["search"]["-s"] = {c: None for c in self.search_cols}
             choices["search"]["--sortby"] = {c: None for c in self.search_cols}
+            choices["holdings"]["-t"] = {c: None for c in ["all", "equity","bond", "other"]}
 
             choices["support"] = self.SUPPORT_CHOICES
             choices["about"] = self.ABOUT_CHOICES
@@ -92,6 +107,7 @@ class FundController(BaseController):
 
     def print_help(self):
         """Print help"""
+
         if self.fund_name:
             if self.fund_symbol:
                 fund_string = f"{self.fund_name} ({self.fund_symbol})"
@@ -101,29 +117,41 @@ class FundController(BaseController):
             fund_string = ""
         mt = MenuText("funds/")
         mt.add_cmd("country")
+        mt.add_cmd("country_ms")
         mt.add_raw("\n")
         mt.add_param("_country", self.country.title())
         mt.add_raw("\n")
         mt.add_cmd("overview")
         mt.add_cmd("search")
+        mt.add_cmd("search_ms")
         mt.add_cmd("load")
+        mt.add_cmd("load_ms")
         mt.add_raw("\n")
         mt.add_param("_fund", fund_string)
         mt.add_raw("\n")
         mt.add_cmd("info", self.fund_symbol)
         mt.add_cmd("plot", self.fund_symbol)
+        mt.add_cmd("plot_ms", self.fund_symbol)
+        mt.add_cmd("sector_ms", self.fund_symbol)
         if self.country == "united states":
             mt.add_cmd("sector", self.fund_symbol)
             mt.add_cmd("equity", self.fund_symbol)
         if self.country == "sweden":
             mt.add_cmd("al_swe", self.fund_symbol)
             mt.add_cmd("info_swe", self.fund_symbol)
+        if self.funds_ms:
+            mt.add_cmd("holdings")
         console.print(text=mt.menu_text, menu="Mutual Funds")
+
+
+
+
 
     def custom_reset(self):
         """Class specific component of reset command"""
         if self.fund_name:
-            return ["funds", f"load {self.fund_name} --name"]
+            return ["funds", f"load_ms {self.fund_name}"]
+            #return ["funds", f"load {self.fund_name} --name"]
         return []
 
     @log_start_end(log=logger)
@@ -157,6 +185,76 @@ class FundController(BaseController):
         console.print("")
         return self.queue
 
+    @log_start_end(log=logger)
+    def call_country_ms(self, other_args: List[str]):
+        """Process country_ms command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="country",
+            description="Set a country for funds",
+        )
+        parser.add_argument(
+            "-n",
+            "--name",
+            type=str,
+            dest="name",
+            nargs="+",
+            help="country to select",
+            default="",
+        )
+        if other_args and "-" not in other_args[0][0]:
+            other_args.insert(0, "-n")
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            country_candidate = " ".join(ns_parser.name)
+            if country_candidate.lower() in self.fund_countries_ms:
+                
+                console.print(f"country {country_candidate} selected")
+            else:
+                console.print(
+                    f"{country_candidate.lower()} not a valid country to select."
+                )
+        
+        return self.queue
+
+    @log_start_end(log=logger)
+    def call_search_ms(self, other_args: List[str]):
+        """Process country command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="search",
+            description="Search mutual funds in selected country",
+        )
+        parser.add_argument(
+            "--fund",
+            help="Fund string to search for",
+            dest="fund",
+            type=str,
+            nargs="+",
+            required="-h" not in other_args,
+        )
+
+        parser.add_argument(
+            "-l",
+            "--limit",
+            help="Number of search results to show",
+            type=check_positive,
+            dest="limit",
+            default=10,
+        )
+        if other_args and "-" not in other_args[0][0]:
+            other_args.insert(0, "--fund")
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            search_string = " ".join(ns_parser.fund)
+            mstarpy_view.display_search(
+                term=search_string,
+                country=self.country,
+                limit=ns_parser.limit,
+            )
+        return self.queue
     @log_start_end(log=logger)
     def call_search(self, other_args: List[str]):
         """Process country command"""
@@ -267,6 +365,40 @@ class FundController(BaseController):
         return self.queue
 
     @log_start_end(log=logger)
+    def call_load_ms(self, other_args: List[str]):
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="load",
+            description="Load the funds to access his data",
+        )
+        parser.add_argument(
+            "--fund",
+            help="Fund string to search for",
+            dest="fund",
+            type=str,
+            nargs="+",
+            required="-h" not in other_args,
+        )
+        if other_args and "-" not in other_args[0][0]:
+            other_args.insert(0, "--fund")
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            parsed_fund = " ".join(ns_parser.fund)
+
+            self.funds_ms = mstarpy_view.display_load(
+                term=parsed_fund,
+                country=self.country
+                )
+            self.fund_name = self.funds_ms.name
+            self.fund_symbol = self.funds_ms.code
+        return self.queue
+        
+
+
+
+
+    @log_start_end(log=logger)
     def call_load(self, other_args: List[str]):
         """Process country command"""
         parser = argparse.ArgumentParser(
@@ -361,6 +493,72 @@ Potential errors
         return self.queue
 
     @log_start_end(log=logger)
+    def call_plot_ms(self, other_args: List[str]):
+        """Process plot command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="plot",
+            description="Plot historical data.",
+        )
+
+        ns_parser = self.parse_known_args_and_warn(
+            parser, other_args, export_allowed=EXPORT_ONLY_FIGURES_ALLOWED
+        )
+        if ns_parser:
+            if not self.fund_symbol:
+                console.print(
+                    "No fund loaded.  Please use `load` first to plot.\n", style="bold"
+                )
+                return self.queue
+            mstarpy_view.display_historical(
+                self.funds_ms
+            )
+        return self.queue
+
+    @log_start_end(log=logger)
+    def call_sector_ms(self, other_args: List[str]):
+        """Process plot command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="sector",
+            description="Show funds, index, category sector breakdown.",
+        )
+
+        parser.add_argument(
+            "-t",
+            "--type",
+            type=str,
+            dest="type",
+            nargs="+",
+            help="asset type to select",
+            default="equity"
+        )
+
+        if other_args and "-" not in other_args[0][0]:
+            other_args.insert(0, "--type")
+
+        ns_parser = self.parse_known_args_and_warn(
+            parser, other_args, export_allowed=EXPORT_ONLY_FIGURES_ALLOWED
+        )
+        if ns_parser:
+            if not self.fund_symbol:
+                console.print(
+                    "No fund loaded.  Please use `load` first to plot.\n", style="bold"
+                )
+                return self.queue
+            if isinstance(ns_parser.type,list):
+                type_candidate = " ".join(ns_parser.type)
+            else:
+                type_candidate = ns_parser.type
+            mstarpy_view.display_sector(
+                self.funds_ms,
+                asset_type=type_candidate
+            )
+        return self.queue
+
+    @log_start_end(log=logger)
     def call_sector(self, other_args: List[str]):
         """Process sector command"""
         parser = argparse.ArgumentParser(
@@ -399,6 +597,34 @@ Potential errors
             )
 
         return self.queue
+
+
+    @log_start_end(log=logger)
+    def call_holdings(self, other_args: List[str]):
+        """Process holdings command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="equity",
+            description="Show fund equity holdings.",
+        )
+        parser.add_argument(
+            "-t",
+            "--type",
+            type=str,
+            dest="type",
+            nargs="+",
+            help="type of holdings",
+            default="all",
+        )
+        if other_args and "-" not in other_args[0][0]:
+            other_args.insert(0, "-t")
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            mstarpy_view.display_holdings(self.funds_ms, ns_parser.type)
+        
+        return self.queue
+
 
     @log_start_end(log=logger)
     def call_equity(self, other_args: List[str]):
