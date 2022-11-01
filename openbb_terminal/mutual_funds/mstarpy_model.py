@@ -9,8 +9,41 @@ logger = logging.getLogger(__name__)
 
 
 
+@log_start_end(log=logger)
+def load_carbon_metrics(loaded_funds : mstarpy.Funds):
+    """Search mstarpy for carbon metrics
 
+    Parameters
+    ----------
+    loaded_funds: mstarpy.Funds
+        class mstarpy.Funds instanciated with selected funds
 
+    Returns
+    -------
+        pd.DataFrame of carbon metrics
+    """
+    carbonMetrics = loaded_funds.carbonMetrics()
+    return pd.Series(carbonMetrics, name='carbonMetrics').reset_index()
+
+@log_start_end(log=logger)
+def load_exclusion_policy(loaded_funds : mstarpy.Funds):
+    """Search mstarpy exclusion policy in esgData
+
+    Parameters
+    ----------
+    loaded_funds: mstarpy.Funds
+        class mstarpy.Funds instanciated with selected funds
+
+    Returns
+    -------
+        pd.DataFrame of exclusion policy
+    """
+    esgData = loaded_funds.esgData()
+    if "sustainabilityIntentionality" in esgData:
+
+        return pd.Series(esgData["sustainabilityIntentionality"], name='exclusionPolicy').reset_index()
+    else:
+        return pd.DataFrame()
 
 @log_start_end(log=logger)
 def load_funds(

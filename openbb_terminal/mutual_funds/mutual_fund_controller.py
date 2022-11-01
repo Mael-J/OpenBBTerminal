@@ -58,6 +58,8 @@ class FundController(BaseController):
         "al_swe",
         "info_swe",
         "holdings",
+        "carbon_metrics",
+        "exclusion_policy",
     ]
 
     fund_countries = investpy.funds.get_fund_countries()
@@ -133,6 +135,7 @@ class FundController(BaseController):
         mt.add_cmd("plot", self.fund_symbol)
         mt.add_cmd("plot_ms", self.fund_symbol)
         mt.add_cmd("sector_ms", self.fund_symbol)
+        
         if self.country == "united states":
             mt.add_cmd("sector", self.fund_symbol)
             mt.add_cmd("equity", self.fund_symbol)
@@ -141,6 +144,8 @@ class FundController(BaseController):
             mt.add_cmd("info_swe", self.fund_symbol)
         if self.funds_ms:
             mt.add_cmd("holdings")
+            mt.add_cmd("carbon_metrics", self.fund_symbol)
+            mt.add_cmd("exclusion_policy", self.fund_symbol)
         console.print(text=mt.menu_text, menu="Mutual Funds")
 
 
@@ -605,8 +610,8 @@ Potential errors
         parser = argparse.ArgumentParser(
             add_help=False,
             formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-            prog="equity",
-            description="Show fund equity holdings.",
+            prog="holdings",
+            description="Show funds holdings.",
         )
         parser.add_argument(
             "-t",
@@ -622,6 +627,40 @@ Potential errors
         ns_parser = self.parse_known_args_and_warn(parser, other_args)
         if ns_parser:
             mstarpy_view.display_holdings(self.funds_ms, ns_parser.type)
+        
+        return self.queue
+
+
+    @log_start_end(log=logger)
+    def call_carbon_metrics(self, other_args: List[str]):
+        """Process carbon_metrics command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="carbon_metrics",
+            description="Show funds carbon metrcis.",
+        )
+
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            mstarpy_view.display_carbon_metrics(self.funds_ms)
+        
+        return self.queue
+
+
+    @log_start_end(log=logger)
+    def call_exclusion_policy(self, other_args: List[str]):
+        """Process exclusion_policy command"""
+        parser = argparse.ArgumentParser(
+            add_help=False,
+            formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+            prog="exclusion_policy",
+            description="Show funds exclsuion policy.",
+        )
+
+        ns_parser = self.parse_known_args_and_warn(parser, other_args)
+        if ns_parser:
+            mstarpy_view.display_exclusion_policy(self.funds_ms)
         
         return self.queue
 
