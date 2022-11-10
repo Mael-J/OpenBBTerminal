@@ -61,13 +61,13 @@ In order to load a CSV do the following:
 
 
 @log_start_end(log=logger)
-def display_orderbook(
+def display_transactions(
     portfolio=None,
     show_index=False,
     limit: int = 10,
     export: str = "",
 ):
-    """Display portfolio orderbook
+    """Display portfolio transactions
 
     Parameters
     ----------
@@ -82,10 +82,10 @@ def display_orderbook(
     """
 
     if portfolio.empty:
-        logger.warning("No orderbook loaded")
-        console.print("[red]No orderbook loaded.[/red]\n")
+        logger.warning("No transactions file loaded.")
+        console.print("[red]No transactions file loaded.[/red]\n")
     else:
-        df = portfolio.get_orderbook()
+        df = portfolio.get_transactions()
         print_rich_table(
             df=df[:limit],
             show_index=show_index,
@@ -120,6 +120,7 @@ def display_assets_allocation(
     include_separate_tables: bool
         Whether to include separate asset allocation tables
     """
+
     benchmark_allocation = benchmark_allocation.iloc[:limit]
     portfolio_allocation = portfolio_allocation.iloc[:limit]
 
@@ -139,6 +140,7 @@ def display_assets_allocation(
     )
 
     if include_separate_tables:
+        console.print("")
         print_rich_table(
             portfolio_allocation,
             headers=list(portfolio_allocation.columns),
@@ -147,6 +149,7 @@ def display_assets_allocation(
             floatfmt=[".2%", ".2%"],
             show_index=False,
         )
+        console.print("")
         print_rich_table(
             benchmark_allocation,
             headers=list(benchmark_allocation.columns),
@@ -225,6 +228,7 @@ def display_category_allocation(
     )
 
     if include_separate_tables:
+
         print_rich_table(
             pd.DataFrame(portfolio_allocation),
             headers=list(["Allocation"]),
@@ -233,6 +237,7 @@ def display_category_allocation(
             floatfmt=[".2%"],
             show_index=True,
         )
+
         print_rich_table(
             pd.DataFrame(benchmark_allocation),
             headers=list(["Allocation"]),
@@ -241,12 +246,12 @@ def display_category_allocation(
             floatfmt=[".2%"],
             show_index=True,
         )
+        console.print("\n")
 
 
 @log_start_end(log=logger)
 def display_performance_vs_benchmark(
     portfolio: portfolio_model.PortfolioModel,
-    interval: str = "all",
     show_all_trades: bool = False,
 ):
     """Display portfolio performance vs the benchmark
@@ -257,20 +262,16 @@ def display_performance_vs_benchmark(
         Object containing trades made within the portfolio.
     benchmark_trades: pd.DataFrame
         Object containing trades made within the benchmark.
-    interval : str
-        interval to consider performance. From: mtd, qtd, ytd, 3m, 6m, 1y, 3y, 5y, 10y, all
     show_all_trades: bool
         Whether to also show all trades made and their performance (default is False)
     """
 
-    df = portfolio_model.get_performance_vs_benchmark(
-        portfolio, interval, show_all_trades
-    )
+    df = portfolio_model.get_performance_vs_benchmark(portfolio, show_all_trades)
 
     if show_all_trades:
         print_rich_table(
             df,
-            title=f"Portfolio vs. Benchmark - Individual Trades in period: {interval}",
+            title="Portfolio vs. Benchmark - Individual Trades in period",
             headers=list(df.columns),
             show_index=False,
             floatfmt=[".2f", ".2f", ".2f", ".2%", ".2f", ".2%", ".2%"],
@@ -278,7 +279,7 @@ def display_performance_vs_benchmark(
     else:
         print_rich_table(
             df,
-            title=f"Portfolio vs. Benchmark - Totals in period: {interval}",
+            title="Portfolio vs. Benchmark",
             headers=list(df.columns),
             show_index=True,
         )
@@ -398,16 +399,19 @@ def display_monthly_returns(
     if raw:
         print_rich_table(
             portfolio_returns,
-            title="Monthly returns",
+            title="Monthly returns - portfolio [%]",
             headers=portfolio_returns.columns,
             show_index=True,
         )
+        console.print("\n")
+
         print_rich_table(
             benchmark_returns,
-            title="Monthly returns",
+            title="Monthly returns - benchmark [%]",
             headers=benchmark_returns.columns,
             show_index=True,
         )
+        console.print("\n")
 
     else:
         if external_axes is None:
@@ -621,7 +625,7 @@ def display_distribution_returns(
 @log_start_end(log=logger)
 def display_holdings_value(
     portfolio: portfolio_model.PortfolioModel,
-    sum_assets: bool = False,
+    unstack: bool = False,
     raw: bool = False,
     limit: int = 10,
     export: str = "",
@@ -633,8 +637,8 @@ def display_holdings_value(
     ----------
     portfolio: Portfolio
         Portfolio object with trades loaded
-    sum_assets: bool
-        Sum assets over time
+    unstack: bool
+        Individual assets over time
     raw : bool
         To display raw data
     limit : int
@@ -664,7 +668,8 @@ def display_holdings_value(
                 return
             ax = external_axes[0]
 
-        if sum_assets:
+        if not unstack:
+            all_holdings.drop(columns=["Total Value"], inplace=True)
             ax.stackplot(
                 all_holdings.index,
                 [all_holdings[col] for col in all_holdings.columns],
@@ -698,7 +703,7 @@ def display_holdings_value(
 @log_start_end(log=logger)
 def display_holdings_percentage(
     portfolio: portfolio_model.PortfolioModel,
-    sum_assets: bool = False,
+    unstack: bool = False,
     raw: bool = False,
     limit: int = 10,
     export: str = "",
@@ -710,8 +715,8 @@ def display_holdings_percentage(
     ----------
     portfolio: Portfolio
         Portfolio object with trades loaded
-    sum_assets: bool
-        Sum assets over time
+    unstack: bool
+        Individual assets over time
     raw : bool
         To display raw data
     limit : int
@@ -747,7 +752,7 @@ def display_holdings_percentage(
                 return
             ax = external_axes[0]
 
-        if sum_assets:
+        if not unstack:
             ax.stackplot(
                 all_holdings.index,
                 all_holdings.values.T,
@@ -1073,13 +1078,14 @@ def display_rsquare(
         Export data format
     """
 
-    df = portfolio_model.get_r2_score(portfolio)
+    df = portfolio_model.get_r2_score(portfolio).fillna("-")
 
     print_rich_table(
         df,
         title="R-Square Score between Portfolio and Benchmark",
         headers=["R-Square Score"],
         show_index=True,
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1104,13 +1110,13 @@ def display_skewness(
         Export data format
     """
 
-    df = portfolio_model.get_skewness(portfolio)
+    df = portfolio_model.get_skewness(portfolio).fillna("-")
 
     print_rich_table(
         df,
         title="Skewness for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1134,13 +1140,13 @@ def display_kurtosis(
         Export data format
     """
 
-    df = portfolio_model.get_kurtosis(portfolio)
+    df = portfolio_model.get_kurtosis(portfolio).fillna("-")
 
     print_rich_table(
         df,
         title="Kurtosis for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1196,12 +1202,12 @@ def display_volatility(
     export : str
         Export data format
     """
-    df = portfolio_model.get_volatility(portfolio)
+    df = portfolio_model.get_volatility(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Volatility for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_volatility", df
@@ -1225,12 +1231,12 @@ def display_sharpe_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_sharpe_ratio(portfolio, risk_free_rate)
+    df = portfolio_model.get_sharpe_ratio(portfolio, risk_free_rate).fillna("-")
     print_rich_table(
         df,
         title="Sharpe ratio for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1257,12 +1263,12 @@ def display_sortino_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_sortino_ratio(portfolio, risk_free_rate)
+    df = portfolio_model.get_sortino_ratio(portfolio, risk_free_rate).fillna("-")
     print_rich_table(
         df,
         title="Sortino ratio for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1286,12 +1292,12 @@ def display_maximum_drawdown_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_maximum_drawdown_ratio(portfolio)
+    df = portfolio_model.get_maximum_drawdown_ratio(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Maximum drawdown for Portfolio and Benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_maxdrawdown", df
@@ -1312,12 +1318,12 @@ def display_gaintopain_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_gaintopain_ratio(portfolio)
+    df = portfolio_model.get_gaintopain_ratio(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Gain-to-pain ratio for portfolio and benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1342,11 +1348,12 @@ def display_tracking_error(
         Export data format
     """
     df, _ = portfolio_model.get_tracking_error(portfolio)
+    df = df.fillna("-")
     print_rich_table(
         df,
         title="Benchmark Tracking Error",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_tracking_error", df
@@ -1367,12 +1374,12 @@ def display_information_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_information_ratio(portfolio)
+    df = portfolio_model.get_information_ratio(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Information ratio for portfolio",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1399,11 +1406,12 @@ def display_tail_ratio(
         Export data format
     """
     df, _, _ = portfolio_model.get_tail_ratio(portfolio)
+    df = df.fillna("-")
     print_rich_table(
         df,
         title="Tail ratio for portfolio and benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_tail_ratio", df
@@ -1424,12 +1432,12 @@ def display_common_sense_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_common_sense_ratio(portfolio)
+    df = portfolio_model.get_common_sense_ratio(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Common sense ratio for portfolio and benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export,
@@ -1457,11 +1465,12 @@ def display_jensens_alpha(
         Export data format
     """
     df, _ = portfolio_model.get_jensens_alpha(portfolio, risk_free_rate)
+    df = df.fillna("-")
     print_rich_table(
         df,
         title="Portfolio's jensen's alpha",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_jensens_alpha", df
@@ -1483,11 +1492,12 @@ def display_calmar_ratio(
         Export data format
     """
     df, _ = portfolio_model.get_calmar_ratio(portfolio)
+    df = df.fillna("-")
     print_rich_table(
         df,
         title="Calmar ratio for portfolio and benchmark",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_calmar_ratio", df
@@ -1508,12 +1518,12 @@ def display_kelly_criterion(
     export : str
         Export data format
     """
-    df = portfolio_model.get_kelly_criterion(portfolio)
+    df = portfolio_model.get_kelly_criterion(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Kelly criterion of the portfolio",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_kelly_criterion", df
@@ -1533,12 +1543,12 @@ def display_payoff_ratio(
     export : str
         Export data format
     """
-    df = portfolio_model.get_payoff_ratio(portfolio)
+    df = portfolio_model.get_payoff_ratio(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Portfolio's payoff ratio",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_payoff_ratio", df
@@ -1558,12 +1568,12 @@ def display_profit_factor(
     export : str
         Export data format
     """
-    df = portfolio_model.get_profit_factor(portfolio)
+    df = portfolio_model.get_profit_factor(portfolio).fillna("-")
     print_rich_table(
         df,
         title="Portfolio's profit factor",
         show_index=True,
-        floatfmt=".3f",
+        floatfmt=".2%",
     )
     export_data(
         export, os.path.dirname(os.path.abspath(__file__)), "metric_profit_factor", df
@@ -1609,7 +1619,7 @@ def display_summary(
 @log_start_end(log=logger)
 def display_var(
     portfolio: portfolio_model.PortfolioModel,
-    use_mean: bool = False,
+    use_mean: bool = True,
     adjusted_var: bool = False,
     student_t: bool = False,
     percentile: float = 99.9,
@@ -1629,6 +1639,7 @@ def display_var(
     percentile: float
         var percentile (%)
     """
+
     qa_view.display_var(
         data=portfolio.returns,
         symbol="Portfolio",
@@ -1643,7 +1654,7 @@ def display_var(
 @log_start_end(log=logger)
 def display_es(
     portfolio: portfolio_model.PortfolioModel,
-    use_mean: bool = False,
+    use_mean: bool = True,
     distribution: str = "normal",
     percentile: float = 99.9,
 ):
